@@ -1,43 +1,45 @@
-export function ClaimForm() {
+import type { RepOption } from "@/types/rep";
+
+type ClaimFormProps = {
+  reps: RepOption[];
+  action: (formData: FormData) => void | Promise<void>;
+};
+
+export function ClaimForm({ reps, action }: ClaimFormProps) {
   return (
     <section className="panel panel-section">
       <h2 className="panel-section__title">New Claim</h2>
-      <p className="panel-section__copy">
-        This starter form shows the fields we expect to capture in the first pass.
-      </p>
 
-      <form className="form-grid">
+      <form action={action} className="form-grid">
         <label className="form-field">
           <span>Rep</span>
-          <input placeholder="Sarah Chen" />
-        </label>
-
-        <label className="form-field">
-          <span>Bounty Type</span>
-          <select defaultValue="Expansion">
-            <option>Expansion</option>
-            <option>Multi-year</option>
-            <option>New logo</option>
+          <select name="repId" required defaultValue="">
+            <option value="" disabled>
+              Select rep
+            </option>
+            {reps.map((rep) => (
+              <option key={rep.id} value={rep.id}>
+                {rep.name}
+              </option>
+            ))}
           </select>
         </label>
 
         <label className="form-field">
-          <span>Account</span>
-          <input placeholder="Acme Corp" />
+          <span>SFDC Opportunity Link</span>
+          <input name="opportunityName" />
         </label>
 
         <label className="form-field">
-          <span>Expected Payout</span>
-          <input placeholder="$2,500" />
+          <span>Close Date</span>
+          <input name="closeDate" type="date" />
         </label>
 
-        <label className="form-field form-field--full">
-          <span>Notes</span>
-          <textarea
-            rows={5}
-            placeholder="Add proof details, CRM context, or approval notes."
-          />
-        </label>
+        <div className="form-actions form-field--full">
+          <button className="button-primary" type="submit">
+            Add claim
+          </button>
+        </div>
       </form>
     </section>
   );

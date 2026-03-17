@@ -2,31 +2,43 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { LeaderboardTable } from "@/components/dashboard/leaderboard-table";
 import { QuarterFilter } from "@/components/dashboard/quarter-filter";
 import { PageHeader } from "@/components/shared/page-header";
-import { dashboardLeaderboard, dashboardSummary } from "@/lib/mock-data";
+import { getDashboardData } from "@/lib/dashboard-data";
+import { getQuarterLabel, quarterOptions } from "@/lib/utils/quarter";
 
-export default function DashboardPage() {
+type DashboardPageProps = {
+  searchParams?: Promise<{ quarter?: string }>;
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const defaultQuarter = getQuarterLabel(new Date());
+  const selectedQuarter =
+    resolvedSearchParams.quarter && quarterOptions.includes(resolvedSearchParams.quarter)
+      ? resolvedSearchParams.quarter
+      : defaultQuarter;
+  const { summary, leaderboard } = await getDashboardData(selectedQuarter);
+
   return (
     <>
       <PageHeader
-        eyebrow="Quarterly Snapshot"
-        title="Bounty scoreboard for the whole floor."
-        description="Track expected payouts, active claims, and rep standings in one shared place before quarter-end reconciliation."
-        actions={<QuarterFilter value="Q1 2026" />}
+        title=""
+        actions={<QuarterFilter value={selectedQuarter} />}
       />
 
       <section className="dashboard-grid">
         <div className="dashboard-grid__stats">
           <KpiCard
             label="Total Expected Bounty This Quarter"
-            value={dashboardSummary.totalExpected}
+            value={summary.totalExpected}
+            tone="accent"
           />
           <KpiCard
-            label="Active Bounty Claims"
-            value={dashboardSummary.activeClaims.toString()}
+            label="Total Bounty Claims"
+            value={summary.activeClaims.toString()}
           />
         </div>
 
-        <LeaderboardTable rows={dashboardLeaderboard} />
+        <LeaderboardTable rows={leaderboard} />
       </section>
     </>
   );

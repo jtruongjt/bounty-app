@@ -1,20 +1,43 @@
+import { createClaim } from "@/app/claims/actions";
 import { ClaimForm } from "@/components/claims/claim-form";
 import { ClaimsTable } from "@/components/claims/claims-table";
 import { PageHeader } from "@/components/shared/page-header";
-import { claims } from "@/lib/mock-data";
+import { getClaimsPageData } from "@/lib/claims-data";
 
-export default function ClaimsPage() {
+type ClaimsPageProps = {
+  searchParams?: Promise<{ created?: string; error?: string }>;
+};
+
+export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
+  const emptySearchParams: { created?: string; error?: string } = {};
+  const [{ claims, reps }, resolvedSearchParams] =
+    await Promise.all([
+      getClaimsPageData(),
+      searchParams ?? Promise.resolve(emptySearchParams),
+    ]);
+
+  const created = resolvedSearchParams.created === "1";
+  const error = resolvedSearchParams.error;
+
   return (
     <>
       <PageHeader
-        eyebrow="Claims"
-        title="Track every bounty-eligible deal."
-        description="This page is the operating table for reps and managers to log deals, inspect status, and keep proof organized."
+        title="Bounty Claim"
       />
+
+      {created ? (
+        <section className="panel flash-banner flash-banner--success">
+          Claim created and added to the live bounty tracker.
+        </section>
+      ) : null}
+
+      {error ? (
+        <section className="panel flash-banner flash-banner--error">{error}</section>
+      ) : null}
 
       <div className="split-layout">
         <ClaimsTable claims={claims} />
-        <ClaimForm />
+        <ClaimForm reps={reps} action={createClaim} />
       </div>
     </>
   );

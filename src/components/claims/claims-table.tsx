@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { formatCurrency } from "@/lib/utils/currency";
 import type { BountyClaim } from "@/types/bounty";
-import { ClaimStatusBadge } from "./claim-status-badge";
 
 type ClaimsTableProps = {
   claims: BountyClaim[];
@@ -13,34 +11,43 @@ export function ClaimsTable({ claims }: ClaimsTableProps) {
       <div className="table-panel__header">
         <div>
           <h2>All Claims</h2>
-          <p>Use this table to monitor every bounty-eligible deal in flight.</p>
         </div>
       </div>
 
       <table>
         <thead>
           <tr>
-            <th>Account</th>
             <th>Rep</th>
-            <th>Bounty Type</th>
+            <th>SFDC Opportunity</th>
             <th>Expected</th>
-            <th>Status</th>
+            <th>Quarter</th>
           </tr>
         </thead>
         <tbody>
-          {claims.map((claim) => (
-            <tr key={claim.id}>
-              <td>
-                <Link href={`/claims/${claim.id}`}>{claim.accountName}</Link>
-              </td>
-              <td>{claim.repName}</td>
-              <td>{claim.bountyType}</td>
-              <td>{formatCurrency(claim.expectedAmount)}</td>
-              <td>
-                <ClaimStatusBadge status={claim.status} />
+          {claims.length > 0 ? (
+            claims.map((claim) => (
+              <tr key={claim.id}>
+                <td>{claim.repName}</td>
+                <td>
+                  {claim.opportunityName ? (
+                    <a href={claim.opportunityName} target="_blank" rel="noreferrer">
+                      Open link
+                    </a>
+                  ) : (
+                    "Missing link"
+                  )}
+                </td>
+                <td>{formatCurrency(claim.expectedAmount)}</td>
+                <td>{claim.quarterLabel ?? "Unassigned"}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={4} className="table-panel__empty">
+                No claims yet. Add the first bounty on the right to start the quarter.
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </section>

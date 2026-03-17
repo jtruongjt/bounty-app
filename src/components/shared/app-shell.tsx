@@ -1,13 +1,14 @@
 "use client";
 
+import { Suspense } from "react";
+import Image from "next/image";
+import bountyImage from "../../../Bounty image.png";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 const navItems = [
   { href: "/", label: "Dashboard" },
   { href: "/claims", label: "Claims" },
-  { href: "/reconciliation", label: "Reconciliation" },
-  { href: "/settings", label: "Settings" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -17,10 +18,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <div className="app-shell__inner">
         <aside className="sidebar">
-          <h1 className="sidebar__title">Bounty Tracker</h1>
-          <p className="sidebar__subtitle">
-            Shared visibility for quarterly incentives.
-          </p>
+          <h1 className="sidebar__title">Bounty Hunter</h1>
+
+          <Suspense fallback={null}>
+            <SidebarPoster pathname={pathname} />
+          </Suspense>
 
           <nav className="sidebar__nav" aria-label="Primary">
             {navItems.map((item) => {
@@ -43,6 +45,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <main className="content">{children}</main>
       </div>
+    </div>
+  );
+}
+
+function SidebarPoster({ pathname }: { pathname: string }) {
+  const searchParams = useSearchParams();
+  const selectedQuarter = searchParams.get("quarter") || "Q1 2027";
+  const showPoster = pathname === "/" && selectedQuarter === "Q1 2027";
+
+  if (!showPoster) {
+    return null;
+  }
+
+  return (
+    <div className="sidebar__poster">
+      <Image
+        src={bountyImage}
+        alt="Wanted-style bounty poster"
+        className="sidebar__poster-image"
+        priority
+      />
     </div>
   );
 }
