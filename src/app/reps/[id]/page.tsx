@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { updateClaimLink } from "@/app/reps/actions";
+import { deleteClaim, updateClaimLink } from "@/app/reps/actions";
+import { DeleteClaimForm } from "@/components/reps/delete-claim-form";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { getRepClaimsPageData } from "@/lib/claims-data";
@@ -7,7 +8,7 @@ import { formatCurrency } from "@/lib/utils/currency";
 
 type RepClaimsPageProps = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ edit?: string; updated?: string; error?: string }>;
+  searchParams?: Promise<{ edit?: string; updated?: string; deleted?: string; error?: string }>;
 };
 
 export default async function RepClaimsPage({
@@ -19,6 +20,7 @@ export default async function RepClaimsPage({
   const { repName, claims } = await getRepClaimsPageData(id);
   const editingClaimId = resolvedSearchParams.edit;
   const updated = resolvedSearchParams.updated === "1";
+  const deleted = resolvedSearchParams.deleted === "1";
   const error = resolvedSearchParams.error;
 
   return (
@@ -28,6 +30,12 @@ export default async function RepClaimsPage({
       {updated ? (
         <section className="panel flash-banner flash-banner--success">
           Claim link updated.
+        </section>
+      ) : null}
+
+      {deleted ? (
+        <section className="panel flash-banner flash-banner--success">
+          Claim deleted.
         </section>
       ) : null}
 
@@ -50,7 +58,7 @@ export default async function RepClaimsPage({
                 <th>Expected</th>
                 <th>Quarter</th>
                 <th>Close Date</th>
-                <th>Edit</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -69,9 +77,12 @@ export default async function RepClaimsPage({
                   <td>{claim.quarterLabel ?? "Unassigned"}</td>
                   <td>{claim.closeDate ?? "No date"}</td>
                   <td>
-                    <Link href={`/reps/${id}?edit=${claim.id}`} className="table-link">
-                      Edit
-                    </Link>
+                    <div className="table-actions">
+                      <Link href={`/reps/${id}?edit=${claim.id}`} className="table-link">
+                        Edit
+                      </Link>
+                      <DeleteClaimForm action={deleteClaim} repId={id} claimId={claim.id} />
+                    </div>
                   </td>
                 </tr>
               ))}

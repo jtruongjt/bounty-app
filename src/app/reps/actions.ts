@@ -42,3 +42,33 @@ export async function updateClaimLink(formData: FormData) {
   revalidatePath(`/reps/${repId}`);
   redirect(`/reps/${repId}?updated=1`);
 }
+
+export async function deleteClaim(formData: FormData) {
+  const sql = getNeonSql();
+
+  if (!sql) {
+    redirect("/claims?error=Database+is+not+configured");
+  }
+
+  const repId = getString(formData, "repId");
+  const claimId = getString(formData, "claimId");
+
+  if (!repId || !claimId) {
+    redirect("/claims?error=Missing+claim+information");
+  }
+
+  try {
+    await sql`
+      delete from bounty_claims
+      where id = ${claimId}
+    `;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to delete claim";
+    redirect(`/reps/${repId}?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/claims");
+  revalidatePath(`/reps/${repId}`);
+  redirect(`/reps/${repId}?deleted=1`);
+}
