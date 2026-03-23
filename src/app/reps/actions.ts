@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getNeonSql } from "@/lib/neon/server";
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -10,10 +10,10 @@ function getString(formData: FormData, key: string) {
 }
 
 export async function updateClaimLink(formData: FormData) {
-  const supabase = createServerSupabaseClient();
+  const sql = getNeonSql();
 
-  if (!supabase) {
-    redirect("/claims?error=Supabase+is+not+configured");
+  if (!sql) {
+    redirect("/claims?error=Database+is+not+configured");
   }
 
   const repId = getString(formData, "repId");
@@ -24,16 +24,17 @@ export async function updateClaimLink(formData: FormData) {
     redirect("/claims?error=Missing+claim+information");
   }
 
-  const { error } = await supabase
-    .from("bounty_claims")
-    .update({
-      opportunity_name: opportunityLink || null,
-      account_name: opportunityLink || "Pending claim",
-    })
-    .eq("id", claimId);
-
-  if (error) {
-    redirect(`/reps/${repId}?error=${encodeURIComponent(error.message)}`);
+  try {
+    await sql`
+      update bounty_claims
+      set
+        opportunity_name = ${opportunityLink || null},
+        account_name = ${opportunityLink || "Pending claim"}
+      where id = ${claimId}
+    `;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to update claim";
+    redirect(`/reps/${repId}?error=${encodeURIComponent(message)}`);
   }
 
   revalidatePath("/");

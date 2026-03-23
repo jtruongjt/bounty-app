@@ -19,7 +19,7 @@ export default async function ClaimDetailPage({
       />
       <EmptyState
         title="Claim detail scaffolded"
-        description="We have the route in place. Next we can wire this page to Supabase and show the selected claim."
+        description="We have the route in place. Next we can wire this page to Neon and show the selected claim."
       />
     </>
   );

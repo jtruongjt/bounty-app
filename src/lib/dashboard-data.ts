@@ -1,16 +1,8 @@
 import { dashboardLeaderboard, dashboardSummary } from "@/lib/mock-data";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getNeonSql } from "@/lib/neon/server";
 import { formatCurrency } from "@/lib/utils/currency";
 import type { ClaimStatus } from "@/types/bounty";
 import type { LeaderboardRow } from "@/types/rep";
-
-const ACTIVE_STATUSES: ClaimStatus[] = [
-  "Identified",
-  "Pending Proof",
-  "Submitted",
-  "Expected",
-  "Disputed",
-];
 
 type QuarterLeaderboardRecord = {
   quarter_label: string;
@@ -32,10 +24,10 @@ export type DashboardData = {
     activeClaims: number;
   };
   leaderboard: LeaderboardRow[];
-  source: "supabase" | "mock";
+  source: "neon" | "mock";
 };
 
-function getEmptyDashboardData(source: "supabase" | "mock"): DashboardData {
+function getEmptyDashboardData(source: "neon" | "mock"): DashboardData {
   return {
     summary: {
       totalExpected: formatCurrency(0),
@@ -62,9 +54,9 @@ function toNumber(value: number | string | null | undefined) {
 export async function getDashboardData(
   quarterLabel: string,
 ): Promise<DashboardData> {
-  const supabase = createServerSupabaseClient();
+  const sql = getNeonSql();
 
-  if (!supabase) {
+  if (!sql) {
     if (quarterLabel !== "Q1 2027") {
       return getEmptyDashboardData("mock");
     }
@@ -76,38 +68,39 @@ export async function getDashboardData(
     };
   }
 
-  const [{ data: leaderboardRows, error: leaderboardError }, { data: claimRows, error: claimsError }] =
-    await Promise.all([
-      supabase
-        .from("quarter_leaderboard")
-        .select("quarter_label, rep_id, full_name, preferred_name, active_claims, expected_bounty")
-        .eq("quarter_label", quarterLabel)
-        .order("expected_bounty", { ascending: false }),
-      supabase
-        .from("bounty_claims")
-        .select("expected_amount, status")
-        .eq("quarter_label", quarterLabel)
-        .in("status", ACTIVE_STATUSES),
-    ]);
+  try {
+    const [leaderboardRows, claimRows] = (await Promise.all([
+      sql`
+        select
+          quarter_label,
+          rep_id,
+          full_name,
+          preferred_name,
+          active_claims,
+          expected_bounty
+        from quarter_leaderboard
+        where quarter_label = ${quarterLabel}
+        order by expected_bounty desc
+      `,
+      sql`
+        select expected_amount, status
+        from bounty_claims
+        where quarter_label = ${quarterLabel}
+          and status in (
+            'Identified',
+            'Pending Proof',
+            'Submitted',
+            'Expected',
+            'Disputed'
+          )
+      `,
+    ])) as [QuarterLeaderboardRecord[], QuarterClaimRecord[]];
 
-  if (leaderboardError || claimsError || !leaderboardRows || !claimRows) {
-    if (quarterLabel !== "Q1 2027") {
-      return getEmptyDashboardData("mock");
-    }
+    const totalExpected = claimRows.reduce((sum, claim) => {
+      return sum + toNumber(claim.expected_amount);
+    }, 0);
 
-    return {
-      summary: dashboardSummary,
-      leaderboard: dashboardLeaderboard,
-      source: "mock",
-    };
-  }
-
-  const totalExpected = claimRows.reduce((sum, claim) => {
-    return sum + toNumber((claim as QuarterClaimRecord).expected_amount);
-  }, 0);
-
-  const leaderboard = (leaderboardRows as QuarterLeaderboardRecord[]).map(
-    (row, index, rows) => {
+    const leaderboard = leaderboardRows.map((row, index, rows) => {
       const expectedBounty = toNumber(row.expected_bounty);
       const totalPool = rows.reduce(
         (sum, current) => sum + toNumber(current.expected_bounty),
@@ -128,15 +121,25 @@ export async function getDashboardData(
             : `${activeClaims} active claims in play`,
         paceLabel: `${share}% of team total`,
       };
-    },
-  );
+    });
 
-  return {
-    summary: {
-      totalExpected: formatCurrency(totalExpected),
-      activeClaims: claimRows.length,
-    },
-    leaderboard,
-    source: "supabase",
-  };
+    return {
+      summary: {
+        totalExpected: formatCurrency(totalExpected),
+        activeClaims: claimRows.length,
+      },
+      leaderboard,
+      source: "neon",
+    };
+  } catch {
+    if (quarterLabel !== "Q1 2027") {
+      return getEmptyDashboardData("mock");
+    }
+
+    return {
+      summary: dashboardSummary,
+      leaderboard: dashboardLeaderboard,
+      source: "mock",
+    };
+  }
 }

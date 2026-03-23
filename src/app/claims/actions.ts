@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getQuarterPayout } from "@/lib/bounty-rules";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getNeonSql } from "@/lib/neon/server";
 import { getQuarterLabel } from "@/lib/utils/quarter";
 import type { ClaimStatus } from "@/types/bounty";
 
@@ -15,10 +15,10 @@ function getString(formData: FormData, key: string) {
 }
 
 export async function createClaim(formData: FormData) {
-  const supabase = createServerSupabaseClient();
+  const sql = getNeonSql();
 
-  if (!supabase) {
-    redirect("/claims?error=Supabase+is+not+configured");
+  if (!sql) {
+    redirect("/claims?error=Database+is+not+configured");
   }
 
   const repId = getString(formData, "repId");
@@ -36,31 +36,39 @@ export async function createClaim(formData: FormData) {
     ? getQuarterLabel(new Date(`${closeDate}T12:00:00`))
     : getQuarterLabel(new Date());
 
-  const { count, error: countError } = await supabase
-    .from("bounty_claims")
-    .select("id", { count: "exact", head: true })
-    .eq("rep_id", repId)
-    .eq("quarter_label", quarterLabel);
+  try {
+    const countRows = (await sql`
+      select count(*)::int as count
+      from bounty_claims
+      where rep_id = ${repId}
+        and quarter_label = ${quarterLabel}
+    `) as { count: number }[];
 
-  if (countError) {
-    redirect(`/claims?error=${encodeURIComponent(countError.message)}`);
-  }
+    const claimNumber = (countRows[0]?.count ?? 0) + 1;
+    const expectedAmount = getQuarterPayout(quarterLabel, claimNumber);
 
-  const claimNumber = (count ?? 0) + 1;
-  const expectedAmount = getQuarterPayout(quarterLabel, claimNumber);
-
-  const { error } = await supabase.from("bounty_claims").insert({
-    rep_id: repId,
-    account_name: accountName,
-    opportunity_name: opportunityName || null,
-    status,
-    expected_amount: expectedAmount,
-    close_date: closeDate || null,
-    quarter_label: quarterLabel,
-  });
-
-  if (error) {
-    redirect(`/claims?error=${encodeURIComponent(error.message)}`);
+    await sql`
+      insert into bounty_claims (
+        rep_id,
+        account_name,
+        opportunity_name,
+        status,
+        expected_amount,
+        close_date,
+        quarter_label
+      ) values (
+        ${repId},
+        ${accountName},
+        ${opportunityName || null},
+        ${status},
+        ${expectedAmount},
+        ${closeDate || null},
+        ${quarterLabel}
+      )
+    `;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to create claim";
+    redirect(`/claims?error=${encodeURIComponent(message)}`);
   }
 
   revalidatePath("/");
