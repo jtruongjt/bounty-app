@@ -9,7 +9,7 @@ type ClaimRow = {
   opportunity_name: string | null;
   status: ClaimStatus;
   expected_amount: number | string;
-  close_date: string | null;
+  close_date: string | Date | null;
   quarter_label: string;
   notes: string | null;
   rep_id: string | null;
@@ -41,6 +41,18 @@ function toNumber(value: number | string | null | undefined) {
   }
 
   return 0;
+}
+
+function toDateString(value: string | Date | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  return value;
 }
 
 export async function getClaimsPageData() {
@@ -100,7 +112,7 @@ export async function getClaimsPageData() {
         bountyType: claim.program_name ?? "Unassigned",
         expectedAmount: toNumber(claim.expected_amount),
         status: claim.status,
-        closeDate: claim.close_date,
+        closeDate: toDateString(claim.close_date),
         quarterLabel: claim.quarter_label,
         notes: claim.notes,
       } satisfies BountyClaim;
@@ -183,7 +195,7 @@ export async function getRepClaimsPageData(repId: string) {
           repName,
           expectedAmount: toNumber(claim.expected_amount),
           status: claim.status,
-          closeDate: claim.close_date,
+          closeDate: toDateString(claim.close_date),
           quarterLabel: claim.quarter_label,
           notes: claim.notes,
           bountyType: "Unassigned",
